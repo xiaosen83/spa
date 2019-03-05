@@ -89,7 +89,7 @@ class spaListener(threading.Thread):
 
 
 	def __init__(self, interface="wlp2s0", 
-		block_all = False, change_seeds = True, allowed_ips = [], fw_label = "spa_server",
+		block_all = False, change_seeds = False, allowed_ips = [], fw_label = "spa_server",
 		db_host='127.0.0.1', db_user="root", db_passwd="password", db="spa_db", db_port=3306):
 		"""
 			Establishes a connection on ip:port
@@ -187,6 +187,7 @@ class spaListener(threading.Thread):
 		print("spa:{0},{1},{2},{3}".format(seed, old_seed,pwd,randoms))
 		# decrypt the spa packet
 		try :
+			print("decrypt with seed:{0}".format(seed))
 			spa_p.decrypt_packet(seed)
 		except spa_packet.InvalidSPA as err:
 			# pass because it might be using old seed

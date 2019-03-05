@@ -61,6 +61,7 @@ class spaFirewall(object):
 		
 		# for same network addresses
 		my_ip = get_local_ip()
+		print("local_ip:{0}, allow_ip:{1}".format(my_ip, ip))
 		if ip == my_ip:
 			rule.src = '127.0.0.1'
 		else :

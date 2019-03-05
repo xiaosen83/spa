@@ -74,7 +74,7 @@ class spa_db():
 			'randoms' : [x.random for x in randoms],
 			'old_randoms' : [x.random for x in old_randoms],
 		}
-
+		print("res_client.seed.seed:{0}".format(res_client.seed.seed))
 		return {'success' : True, 'client' : client_dict}
 
 	# edits existing client 
