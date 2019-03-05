@@ -101,12 +101,12 @@ class SPAreq():
 			try :
 				# parse spa
 				match = re.search(SPA_FORMAT,args[0])
-				print("SPAreq :({0})".format(args[0]))
 				self.aid = match.group(1)
 				self.e_packet = match.group(2)
 				self.md5_h = match.group(3)
+				print("SPAreq :({0})({1})({2})".format(self.aid, self.e_packet, self.md5_h))
 			except Exception as err:
-				print("Invalid arguments for SPAreq creation:({0})".format(args[0]))
+				print("Invalid SPA request received!")
 				raise ValueError("Invalid arguments for SPAreq creation")
 		else :
 			print("Invalid arguments for SPAreq creation11")
