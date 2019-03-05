@@ -7,6 +7,9 @@ INPUT 	= 0
 OUTPUT 	= 1
 DEFAULT_TLS_PORT = 443
 
+def logrule(rule, action='add'):
+	print action, "Rule", "proto:", rule.protocol, "src:", rule.src, "dst:", \
+		rule.dst, "in:", rule.in_interface, "out:", rule.out_interface
 
 def get_local_ip():
 	return ([l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] 
@@ -41,6 +44,7 @@ class spaFirewall(object):
 			# add label comment
 			match = rule.create_match("comment")
 			match.comment = "\"%s\"" % (self.me + ":BLOCK_ALL")
+			logrule(rule, "insert")
 			self.chains[INPUT].insert_rule(rule)
 			# # flush output
 			sys.stdout.flush()
@@ -77,6 +81,7 @@ class spaFirewall(object):
 		
 		# add new rule
 		rule.target = iptc.Target(rule,"ACCEPT")
+		logrule(rule, "insert")
 		self.chains[INPUT].insert_rule(rule)
 		sys.stdout.flush()
 		self.table.refresh()
@@ -93,6 +98,7 @@ class spaFirewall(object):
 				if 'comment' in params:
 					if to_search in params['comment']:
 						try:
+							logrule(rule, "delete")
 							self.chains[INPUT].delete_rule(rule)
 							break
 						except Exception as err:
@@ -142,6 +148,7 @@ class spaFirewall(object):
 					for param in params['comment']:
 						if param.startswith(to_search):
 							try:
+								logrule(rule, "delete")
 								self.chains[INPUT].delete_rule(rule)
 								break
 							except Exception as err:

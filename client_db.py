@@ -7,10 +7,11 @@ PASSWORD_SIZE = 32
 
 class spa_db():
 	
-	def __init__(self, host='localhost', user="root", passwd="", db="spa_db", port=3316):
+	def __init__(self, host='127.0.0.1', user="root", passwd="password", db="spa_db", port=3306):
 		self.db = MySQLDatabase(db, host=host, user=user, passwd=passwd, port=port,\
 								use_unicode=True,  charset= 'utf8')
 		self.db.connect()
+		print("mysql db connected!")
 
 		self.Seed, self.Random, self.Client = self.init_models()
 

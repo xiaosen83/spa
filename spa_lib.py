@@ -53,6 +53,7 @@ def send_spa(AID, password, seed, new_seed, ip="127.0.0.1", port=443, server_ip=
 
 	# get payload
 	payload = JUNK + request.get_encoded_pack()
+	print("payload:(0)".format(payload))
 	send(IP(dst=dst_ip)/UDP(dport=int(dst_port))/Raw(load=payload))
 
 def port_is_open(ip, port, conn_type=TCP):
@@ -88,8 +89,8 @@ class spaListener(threading.Thread):
 
 
 	def __init__(self, interface="wlp2s0", 
-		block_all = True, change_seeds = True, allowed_ips = [], fw_label = "spa_server",
-		db_host='localhost', db_user="root", db_passwd="", db="spa_db", db_port=3316):
+		block_all = False, change_seeds = True, allowed_ips = [], fw_label = "spa_server",
+		db_host='127.0.0.1', db_user="root", db_passwd="password", db="spa_db", db_port=3306):
 		"""
 			Establishes a connection on ip:port
 			and waits for spa packets.
@@ -158,16 +159,24 @@ class spaListener(threading.Thread):
 	def _handle_con(self, packet):
 		spa_p = None
 		try :
-			spa_p = spa_packet.SPAreq(packet[Raw].load)
+			if packet[Raw]:
+				#print("Raw packet found!")
+				spa_p = spa_packet.SPAreq(packet[Raw].load)
+			else:
+				#print("Not raw packet!")
+				return
 		except Exception as err:
 			return
 		# get aid for encrypted packet
 		aid = spa_p.get_aid()
+		print("client aid:{0}".format(aid))
 		# replay packet or tries to login again
 		if aid in self.logged_users:
+			print("aid already in logged_users:{0}".format(aid))
 			return
 		client = self.models.get_client(aid)
 		if not client['success']:
+			print("client not in found:{0}".format(client))
 			return
 		client = client['client']	
 		seed = client['seed']	
@@ -175,19 +184,22 @@ class spaListener(threading.Thread):
 		pwd = client['password']
 		randoms = client['randoms']
 		old_randoms = client['old_randoms']
-		
+		print("spa:{0},{1},{2},{3}".format(seed, old_seed,pwd,randoms))
 		# decrypt the spa packet
 		try :
 			spa_p.decrypt_packet(seed)
 		except spa_packet.InvalidSPA as err:
 			# pass because it might be using old seed
+			print("decrpyt spa packet failed!InvalidSPA")
 			pass
 		except Exception as ex:
+			print("decrpyt spa packet failed!{0}".format(ex))
 			return
 		
 		reset_rand = True	
 		# check if authenticated
 		if not spa_p.is_authenticated(pwd):
+			print("spa not authenticated")
 			# check with old seed too
 			if old_seed:
 				try : 
@@ -207,6 +219,7 @@ class spaListener(threading.Thread):
 		else :
 			# check if replay attack for new seed
 			u_rand = spa_p.get_random()
+			print("random:{0}".format(u_rand))
 			if u_rand in randoms:
 				return 
 			self.add_random_to_old_seed(aid, spa_p.get_random())
@@ -220,6 +233,7 @@ class spaListener(threading.Thread):
 			ip_src = spa_p.get_ip()
 			port = spa_p.get_port()
 		except Exception as err:
+			print("Exception  in  get ip/port:{0}".format(err))
 			return
 		self.logged_users.append(aid)
 		# now allow in firewall

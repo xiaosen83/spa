@@ -63,9 +63,11 @@ class SPAreq():
 			self.password = args[1]
 			self.seed = args[2]
 			self.new_seed = args[3]
+			print("create_new_req:{0}".format(args))
 			try:
 				self.ip = socket.inet_aton(args[4])
 			except Exception:
+				print("Incorrect IP address")
 				raise ValueError("Incorrect IP address")
 			self.port = args[5]
 			
@@ -77,6 +79,7 @@ class SPAreq():
 				# priority is to create a strong random number
 				self.random = c_double(random.SystemRandom().random()).value
 			except NotImplementedError :
+				print("c_double(random.SystemRandom().random()).value")
 				self.random = c_double(random.WichmannHill().random()).value
 
 			# create binary from payload
@@ -93,16 +96,20 @@ class SPAreq():
 			aes_obj = AESCipher(self.seed)
 			enc = aes_obj.encrypt(tmp)
 			self.e_packet = "%s:%s:%s" % (self.aid, enc, self.md5_h)
+			print("encrypt packet:({0})".format(self.e_packet))
 		elif parse_spa_req(args):
 			try :
 				# parse spa
 				match = re.search(SPA_FORMAT,args[0])
+				print("SPAreq :({0})".format(args[0]))
 				self.aid = match.group(1)
 				self.e_packet = match.group(2)
 				self.md5_h = match.group(3)
 			except Exception as err:
+				print("Invalid arguments for SPAreq creation:({0})".format(args[0]))
 				raise ValueError("Invalid arguments for SPAreq creation")
 		else :
+			print("Invalid arguments for SPAreq creation11")
 			raise ValueError("Invalid arguments for SPAreq creation")
 
 	def get_aid(self):
@@ -137,6 +144,7 @@ class SPAreq():
 				struct.unpack(F_PAYLOAD_FORM, tmp)
 			self.ip = socket.inet_ntoa(self.ip)
 		except Exception as err:
+			print("Wrong Seed")
 			raise InvalidSPA("Wrong Seed")
 		
 		#create p_str
@@ -144,6 +152,7 @@ class SPAreq():
 			self.new_seed, socket.inet_aton(self.ip), self.port)
 		# compare md5_hash(uPayload) with md5_hash-check for modification
 		if self.md5_h != md5.new(self.p_str).digest() :
+			print("MD5 Hashes do not match!")
 			raise InvalidSPA("MD5 Hashes do not match!")
 		self.password = self.password.rstrip('\0')
 

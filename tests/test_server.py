@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, '../')
 import spa_lib
 
-s = spa_lib.spaListener(db_passwd="")
+s = spa_lib.spaListener(db_passwd="password")
 
 s.start()
 
