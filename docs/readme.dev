@@ -1,0 +1,6 @@
+
+
+# syslog to log new connection
+$ cat /etc/rsyslog.d/10-iptables.conf
+:msg, contains, "cwang-new"       /var/log/iptables.log
+:msg, contains, "cwang-new"       ~

@@ -14,7 +14,7 @@ from scapy.all import *
 from urllib2 import urlopen
 import random
 import string
-
+import datetime,time,fcntl,signal
 # directory with configuration
 MAX_USERS = 1024
 MTU = 1024
@@ -29,6 +29,8 @@ JUNK = "X"*12
 
 TCP_TYPE = 1 
 UDP_TYPE = 2
+
+g_pending_aids = {}  # aid: timestamp
 
 # used for errors defined by SPA function
 class spaError(Exception):
@@ -157,6 +159,7 @@ class spaListener(threading.Thread):
 		self.fw.allow_ip(ip, label, ctstate = ctstate)
 	
 	def _handle_con(self, packet):
+		global g_pending_aids
 		spa_p = None
 		try :
 			if packet[Raw]:
@@ -237,8 +240,14 @@ class spaListener(threading.Thread):
 			print("Exception  in  get ip/port:{0}".format(err))
 			return
 		self.logged_users.append(aid)
+
+		# add to pending SPA list
+		g_pending_aids[aid] = spa_packet.SPAreq(packet[Raw].load)
+		g_pending_aids[aid].set_timestamp()
+
 		# now allow in firewall
-		self.fw.allow_ip(ip_src, port, aid)
+		#self.fw.allow_ip(ip_src, port, aid)
+		self.fw.allow_ip_new(ip_src, port, aid)
 	
 
 	# model functions
@@ -262,3 +271,48 @@ class spaListener(threading.Thread):
 
 	def add_random_to_old_seed(self, aid, random):
 		return self.models.add_random_to_old_seed(aid, random)
+
+	def logout_user(self, aid):
+		self.logged_users.remove(aid)
+		self.fw.remove_ip_new(aid)
+
+
+IPTABLE_LOG_FILE="/var/log/iptables.log"
+class iptableMonitor(threading.Thread):
+	''' Cleanup timeout iptables rule '''
+	def __init__(self, spalistener):
+		self.is_running = False
+		self._cached_stamp = 0
+		self.spalistener = spalistener
+		super(iptableMonitor, self).__init__()
+
+	def run(self):
+		self.is_running = True
+		while True:
+			try :
+				self.check_rules()
+				time.sleep(1)
+			except Exception as err:
+				print("Thread iptable-monitor exit!({0})".format(err))
+				break	
+		self.is_running = False
+	
+	def check_rules(self):
+		global g_pending_aids
+		logchanged = False
+		stamp = os.stat(IPTABLE_LOG_FILE).st_mtime
+		if stamp != self._cached_stamp:
+			#Mar  6 13:43:46 sslvpn-cwang kernel: [423645.130282] cwang-new: IN=ens32 OUT= MAC=00:50:56:b4:3d:80:00:50:56:9f:1e:bf:08:00 SRC=10.103.220.130 DST=10.103.220.134 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=64990 DF PROTO=TCP SPT=46066 DPT=22 WINDOW=14600 RES=0x00 SYN URGP=0
+			print("new connection reached...({0})".format(len(g_pending_aids)))
+			logchanged = True
+			self._cached_stamp = stamp
+
+		for aid, spa in g_pending_aids.items():
+			#print("AID {0} in pending list({1})".format(aid, spa.get_timestamp()))
+			timedelta = datetime.datetime.now() - spa.get_timestamp()
+			print("time passed:{0}, log file changed:{1}".format(timedelta.seconds, logchanged))
+			if timedelta.seconds > 10 or logchanged:
+				print("SPA timeout, remove it from accept list")
+				#spa timeout, remove form iptable
+				del g_pending_aids[aid]
+				self.spalistener.logout_user(aid)
