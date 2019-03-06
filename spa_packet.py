@@ -6,6 +6,7 @@ import md5
 from aes_enc import *
 import re
 import socket
+import datetime
 
 # SIZES
 AID_S  = 32
@@ -57,7 +58,8 @@ class SPAreq():
 		self.new_seed = None
 		self.ip = None
 		self.port = None
-		
+		self.time = 0
+
 		if create_new_req(args):
 			self.aid = args[0]
 			self.password = args[1]
@@ -164,6 +166,11 @@ class SPAreq():
 			return self.random
 		return None
 
+	def set_timestamp(self):
+		self.time = datetime.datetime.now()
+	def get_timestamp(self):
+		return self.time
+
 	# TODO write a proper str function!!!
 	def __str__(self):
 		return """
@@ -172,4 +179,5 @@ password : %s
 new_seed : %s
 ip : %s
 port : %d
-		""" % (self.aid, self.password, self.new_seed, self.ip, self.port)
+time : %s
+		""" % (self.aid, self.password, self.new_seed, self.ip, self.port, self.time)
