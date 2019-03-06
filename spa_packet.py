@@ -179,5 +179,4 @@ password : %s
 new_seed : %s
 ip : %s
 port : %d
-time : %s
-		""" % (self.aid, self.password, self.new_seed, self.ip, self.port, self.time)
+		""" % (self.aid, self.password, self.new_seed, self.ip, self.port)

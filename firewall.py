@@ -5,11 +5,17 @@ import socket
 
 INPUT 	= 0
 OUTPUT 	= 1
+LOGNEW	= 2
+KNOCKING= 3
+
 DEFAULT_TLS_PORT = 443
+
+LOG_PREFIX="cwang-new: "
+LOG_LEVEL="1"
 
 def logrule(rule, action='add'):
 	print action, "Rule", "proto:", rule.protocol, "src:", rule.src, "dst:", \
-		rule.dst, "in:", rule.in_interface, "out:", rule.out_interface
+		rule.dst, "in:", rule.in_interface, "out:", rule.out_interface, "target:", rule.target
 
 def get_local_ip():
 	return ([l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] 
@@ -27,7 +33,9 @@ class spaFirewall(object):
 		self.table = iptc.Table(iptc.Table.FILTER)
 
 		self.chains = { INPUT : iptc.Chain(self.table, "INPUT"),
-						OUTPUT : iptc.Chain(self.table, "OUTPUT")}
+						OUTPUT : iptc.Chain(self.table, "OUTPUT"),
+						LOGNEW : iptc.Chain(self.table, "LOGNEW"),
+						KNOCKING : iptc.Chain(self.table, "KNOCKING")}
 		self.me = me
 		self.block_all = block_all
 		# Blocks all traffic to all ports
@@ -104,6 +112,85 @@ class spaFirewall(object):
 							break
 						except Exception as err:
 							break	
+		sys.stdout.flush()
+		self.table.refresh()
+
+	def allow_ip_new(self, ip, port, label, ctstate = "NEW,ESTABLISHED"):
+			
+		rule = iptc.Rule()
+		rule.protocol = "tcp"
+		
+		# for same network addresses
+		my_ip = get_local_ip()
+		print("local_ip:{0}, allow_ip:{1}".format(my_ip, ip))
+		if ip == my_ip:
+			rule.src = '127.0.0.1'
+		else :
+			rule.src = ip
+		
+		match = iptc.Match(rule,"tcp")
+		match.dport = str(port)
+		rule.add_match(match)
+
+		# TODO add port option
+		match_c = iptc.Match(rule,"conntrack")
+		match_c.ctstate = ctstate
+		rule.add_match(match_c)
+		
+		# add label comment
+		match = rule.create_match("comment")
+		match.comment = "\"%s\"" % (self.me + ":" + label)
+		
+		# add new rule
+		rule.target = iptc.Target(rule,"ACCEPT")
+		logrule(rule, "insert")
+		self.chains[KNOCKING].insert_rule(rule)
+
+		# insert log rule
+		# update conntrack match
+		rule.remove_match(match_c)
+		match = iptc.Match(rule,"conntrack")
+		match.ctstate = "NEW"
+		rule.add_match(match)
+
+		rule.target = iptc.Target(rule, 'LOG')
+		rule.target.log_prefix = LOG_PREFIX
+		rule.target.log_level = LOG_LEVEL
+		logrule(rule, "insert")
+		self.chains[LOGNEW].insert_rule(rule)
+
+		sys.stdout.flush()
+		self.table.refresh()
+
+	# remove ip from allowed list
+	def remove_ip_new(self, label):
+		# turn off autocommit 
+		# self.table.autocommit = False
+		to_search = "\"%s\"" % (self.me + ":" + label)
+
+		for rule in self.chains[KNOCKING].rules:
+			for match in rule.matches:
+				params = match.get_all_parameters()
+				if 'comment' in params:
+					if to_search in params['comment']:
+						try:
+							logrule(rule, "delete")
+							self.chains[KNOCKING].delete_rule(rule)
+							break
+						except Exception as err:
+							break	
+		for rule in self.chains[LOGNEW].rules:
+			for match in rule.matches:
+				params = match.get_all_parameters()
+				if 'comment' in params:
+					if to_search in params['comment']:
+						try:
+							logrule(rule, "delete")
+							self.chains[LOGNEW].delete_rule(rule)
+							break
+						except Exception as err:
+							break	
+
 		sys.stdout.flush()
 		self.table.refresh()
 

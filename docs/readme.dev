@@ -1,29 +1,6 @@
 
 
-spa_authenticated_list []
-
-spa_pending_list []  map? (aid, time)
-
-import time
-import fcntl
-import os
-import signal
-
-FNAME = "/HOME/TOTO/FILETOWATCH"
-gNewConnReached=False
-def handler(signum, frame):
-    global gNewConnReached
-    gNewConnReached = True
-
-signal.signal(signal.SIGIO, handler)
-fd = os.open(FNAME,  os.O_RDONLY)
-fcntl.fcntl(fd, fcntl.F_SETSIG, 0)
-fcntl.fcntl(fd, fcntl.F_NOTIFY,
-            fcntl.DN_MODIFY | fcntl.DN_CREATE | fcntl.DN_MULTISHOT)
-
-while True:
-    if gNewConnReached:
-        gNewConnReached = False
-        #update spa_pending_list
-        #update firewall rules
-    Sleep(1)
+# syslog to log new connection
+$ cat /etc/rsyslog.d/10-iptables.conf
+:msg, contains, "cwang-new"       /var/log/iptables.log
+:msg, contains, "cwang-new"       ~
